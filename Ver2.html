@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>翔東邨交通建議系統 & 即時路況Ver2</title>
+  <title>翔東邨交通建議系統 & 即時路況</title>
   <style>
     :root {
       --primary: #0066cc;
@@ -59,9 +59,10 @@
     .segment-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; color: #fff; min-width: 65px; text-align: center; margin-right: 12px; }
     .badge-bus { background: #e65100; }
     .badge-mtr { background: #d32f2f; }
-    .badge-walk { background: #757575; }
+    .badge-night { background: #4a148c; }
 
     .eta-box { background: #fff3e0; border: 1px solid #ffe0b2; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; margin-top: 6px; color: #e65100; display: inline-block; font-weight: 500; }
+    .eta-off { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
 
     /* 即時交通訊息 sidebar */
     .news-tab { display: flex; gap: 5px; margin-bottom: 12px; }
@@ -81,8 +82,8 @@
 <body>
 
   <div class="header">
-    <h1>翔東邨交通建議系統Ver2</h1>
-    <p>提供翔東邨 / 迎東邨全港十八區最佳巴士及港鐵轉乘路線建議</p>
+    <h1>翔東邨交通建議系統</h1>
+    <p>提供翔東邨 / 迎東邨全港十八區最佳巴士及港鐵轉乘路線建議（附時段檢測）</p>
   </div>
 
   <div class="app-container">
@@ -145,7 +146,7 @@
   </div>
 
   <script>
-    // 18區及詳細城鎮點數據
+    // 18區地區資料
     const districtsData = {
       HK: [
         { id: "CW", name: "中西區 (中環/金鐘/堅尼地城)" },
@@ -172,76 +173,87 @@
       ]
     };
 
-    // 交通路線數據庫 (去程與回程)
+    // 檢查路線當前時間是否在服務時間內
+    function checkRouteService(routeCode, direction) {
+      const now = new Date();
+      const mins = now.getHours() * 60 + now.getMinutes(); // 0 到 1439 分鐘
+
+      // 深宵通宵時段 (00:30 - 05:30)
+      if (mins >= 30 && mins < 5 * 60 + 30) {
+        if (['N21A', 'N31'].includes(routeCode)) {
+          return { inService: true, text: "深宵通宵特別班次（運作中）" };
+        }
+        return { inService: false, text: "⚠️ 深宵非服務時段 (請乘搭 N21A / N31 通宵巴士)" };
+      }
+
+      // 出發 (Outbound) 時間過濾
+      if (direction === 'outbound') {
+        if (routeCode === 'E11B') {
+          const valid = mins >= (6 * 60 + 35) && mins <= (15 * 60 + 55);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 06:35 - 15:55)" };
+        }
+        if (routeCode === 'E11A') {
+          const valid = mins >= (13 * 60) && mins <= (23 * 60 + 50);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 13:00 - 23:50)" };
+        }
+        if (routeCode === 'E21D') {
+          const valid = mins >= (5 * 60 + 30) && mins <= (13 * 60 + 50);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 05:30 - 13:50)" };
+        }
+        if (routeCode === 'E21A') {
+          const valid = mins >= (14 * 60 + 10) && mins <= (22 * 60);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 14:10 - 22:00)" };
+        }
+      } 
+      // 回程 (Inbound) 時間過濾
+      else {
+        if (routeCode === 'E11A') {
+          const valid = mins >= (13 * 60) && mins <= (23 * 60 + 50);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 13:00 - 23:50)" };
+        }
+        if (routeCode === 'E21D') {
+          const valid = mins >= (16 * 60 + 10) && mins <= (23 * 60 + 50);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 16:10 - 23:50)" };
+        }
+        if (routeCode === 'E21A') {
+          const valid = mins >= (7 * 60 + 30) && mins <= (15 * 60 + 50);
+          return { inService: valid, text: valid ? "預計最快 2 班到站時間" : "⚠️ 現時非服務時間 (服務時間: 07:30 - 15:50)" };
+        }
+      }
+
+      return { inService: true, text: "預計最快 2 班到站時間" };
+    }
+
+    // 數據庫路線定義
     const routesDatabase = {
-      // 荃灣區
-      "TW": {
-        outbound: [
-          {
-            title: "直達龍運巴士 E32A (最推薦)",
-            type: "直達巴士",
-            steps: [
-              { badge: "巴士", text: "於 迎東邨/翔東邨 巴士站乘坐 龍運 E32A", bus: "E32A", eta: ["5 分鐘", "18 分鐘"] },
-              { badge: "到達", text: "途經 葵芳、葵興，直達 荃灣滿樂大廈 / 荃灣大窩口" }
-            ]
-          },
-          {
-            title: "37M 巴士接駁 + 港鐵東涌綫",
-            type: "巴士 ➔ 港鐵",
-            steps: [
-              { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站巴士總站", bus: "37M", eta: ["3 分鐘", "9 分鐘"] },
-              { badge: "港鐵", text: "東涌站 乘坐 東涌綫 至 荔景站，轉乘 荃灣綫 至 荃灣站" }
-            ]
-          }
-        ],
-        inbound: [
-          {
-            title: "直達龍運巴士 E32A (最方便)",
-            type: "直達巴士",
-            steps: [
-              { badge: "巴士", text: "於 荃灣滿樂大廈/大窩口站/葵芳 乘坐 龍運 E32A", bus: "E32A", eta: ["8 分鐘", "22 分鐘"] },
-              { badge: "到達", text: "直達 迎東邨總站 / 翔東邨落車" }
-            ]
-          },
-          {
-            title: "港鐵 ➔ 37M 巴士接駁",
-            type: "港鐵 ➔ 巴士",
-            steps: [
-              { badge: "港鐵", text: "荃灣站 乘坐 荃灣綫 至 荔景站，轉乘 東涌綫 至 東涌站" },
-              { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["4 分鐘", "10 分鐘"] }
-            ]
-          }
-        ]
-      },
-      // 深水埗區
       "SSP": {
         outbound: [
           {
-            title: "直達城巴 E21A / E21B",
+            title: "37M 巴士接駁 + 港鐵東涌綫 (全日首選)",
+            type: "巴士 ➔ 港鐵",
+            steps: [
+              { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站巴士總站", bus: "37M", eta: ["3 分鐘", "8 分鐘"] },
+              { badge: "港鐵", text: "東涌站 乘坐 東涌綫 至 南昌站 (深水埗西) 或 荔景站轉乘荃灣綫" }
+            ]
+          },
+          {
+            title: "直達城巴 E21A (下午至晚間服務)",
             type: "直達巴士",
             steps: [
-              { badge: "巴士", text: "於 迎東邨/翔東邨 巴士站乘坐 城巴 E21A 或 E21B", bus: "E21A/B", eta: ["7 分鐘", "21 分鐘"] },
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 城巴 E21A", bus: "E21A", eta: ["6 分鐘", "21 分鐘"] },
               { badge: "到達", text: "直達 深水埗欽州街、長沙灣道及美孚" }
             ]
           },
           {
-            title: "37M 巴士接駁 + 港鐵東涌綫",
-            type: "巴士 ➔ 港鐵",
+            title: "直達城巴 E21D (上午至中午服務)",
+            type: "直達巴士",
             steps: [
-              { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站", bus: "37M", eta: ["3 分鐘", "8 分鐘"] },
-              { badge: "港鐵", text: "東涌站 乘坐 東涌綫 至 南昌站 (直達深水埗西) 或 荔景站轉荃灣綫" }
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 城巴 E21D", bus: "E21D", eta: ["8 分鐘", "25 分鐘"] },
+              { badge: "到達", text: "直達 美孚、長沙灣道及深水埗" }
             ]
           }
         ],
         inbound: [
-          {
-            title: "直達城巴 E21A / E21B",
-            type: "直達巴士",
-            steps: [
-              { badge: "巴士", text: "於 美孚/長沙灣道/深水埗欽州街 乘坐 城巴 E21A 或 E21B", bus: "E21A/B", eta: ["10 分鐘", "25 分鐘"] },
-              { badge: "到達", text: "直達 迎東邨總站 / 翔東邨落車" }
-            ]
-          },
           {
             title: "港鐵 ➔ 37M 巴士接駁",
             type: "港鐵 ➔ 巴士",
@@ -249,38 +261,45 @@
               { badge: "港鐵", text: "南昌站 乘坐 港鐵東涌綫 至 東涌站" },
               { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["3 分鐘", "9 分鐘"] }
             ]
+          },
+          {
+            title: "直達城巴 E21A (早上至下午服務)",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 深水埗欽州街/長沙灣道 乘坐 城巴 E21A", bus: "E21A", eta: ["10 分鐘", "25 分鐘"] },
+              { badge: "到達", text: "直達 迎東邨總站 / 翔東邨落車" }
+            ]
           }
         ]
       },
-      // 中西區
       "CW": {
         outbound: [
           {
-            title: "直達城巴 E11A",
-            type: "直達巴士",
-            steps: [
-              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 城巴 E11A", bus: "E11A", eta: ["12 分鐘", "28 分鐘"] },
-              { badge: "到達", text: "途經 西區海底隧道，直達 上環、中環、金鐘" }
-            ]
-          },
-          {
-            title: "37M 巴士接駁 + 港鐵東涌綫 (最快)",
+            title: "37M 巴士接駁 + 港鐵東涌綫 (最快全日服務)",
             type: "巴士 ➔ 港鐵",
             steps: [
               { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站", bus: "37M", eta: ["2 分鐘", "7 分鐘"] },
               { badge: "港鐵", text: "東涌站 乘坐 東涌綫 直達 香港站 (可步行至中環站)" }
             ]
+          },
+          {
+            title: "直達城巴 E11A (下午至深夜服務)",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 城巴 E11A", bus: "E11A", eta: ["12 分鐘", "28 分鐘"] },
+              { badge: "到達", text: "經西區海底隧道 直達 上環、中環、金鐘" }
+            ]
+          },
+          {
+            title: "直達城巴 E11B (早上至下午服務)",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 城巴 E11B", bus: "E11B", eta: ["10 分鐘", "25 分鐘"] },
+              { badge: "到達", text: "經西區海底隧道 直達 中環、金鐘、灣仔" }
+            ]
           }
         ],
         inbound: [
-          {
-            title: "直達城巴 E11A",
-            type: "直達巴士",
-            steps: [
-              { badge: "巴士", text: "於 金鐘/中環干諾道中/上環 乘坐 城巴 E11A", bus: "E11A", eta: ["15 分鐘", "30 分鐘"] },
-              { badge: "到達", text: "經西隧直達 迎東邨 / 翔東邨" }
-            ]
-          },
           {
             title: "港鐵東涌綫 ➔ 37M 巴士",
             type: "港鐵 ➔ 巴士",
@@ -288,52 +307,59 @@
               { badge: "港鐵", text: "香港站 乘坐 港鐵東涌綫 直達 東涌站" },
               { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["4 分鐘", "10 分鐘"] }
             ]
+          },
+          {
+            title: "直達城巴 E11A",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 金鐘/中環干諾道中/上環 乘坐 城巴 E11A", bus: "E11A", eta: ["15 分鐘", "30 分鐘"] },
+              { badge: "到達", text: "經西隧直達 迎東邨 / 翔東邨" }
+            ]
           }
         ]
       },
-      // 元朗區
-      "YL": {
+      "TW": {
         outbound: [
           {
-            title: "直達龍運巴士 E36A",
+            title: "直達龍運巴士 E32A (全日首選)",
             type: "直達巴士",
             steps: [
-              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 龍運 E36A", bus: "E36A", eta: ["10 分鐘", "25 分鐘"] },
-              { badge: "到達", text: "途經 屯赤隧道，直達 天水圍市中心 及 元朗形點" }
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 龍運 E32A", bus: "E32A", eta: ["5 分鐘", "18 分鐘"] },
+              { badge: "到達", text: "途經 葵芳、葵興，直達 荃灣滿樂大廈 / 大窩口" }
             ]
           }
         ],
         inbound: [
           {
-            title: "直達龍運巴士 E36A",
+            title: "直達龍運巴士 E32A",
             type: "直達巴士",
             steps: [
-              { badge: "巴士", text: "於 元朗形點 / 天水圍市中心 乘坐 龍運 E36A", bus: "E36A", eta: ["12 分鐘", "27 分鐘"] },
-              { badge: "到達", text: "經屯赤隧道直達 迎東邨 / 翔東邨" }
+              { badge: "巴士", text: "於 荃灣滿樂大廈/大窩口站/葵芳 乘坐 龍運 E32A", bus: "E32A", eta: ["8 分鐘", "22 分鐘"] },
+              { badge: "到達", text: "直達 迎東邨總站 / 翔東邨落車" }
             ]
           }
         ]
       }
     };
 
-    // 通用預設路線（當特定分區未特別寫明時調用）
+    // 通用預設路線
     function getGenericRoutes(districtName, isOutbound) {
       if (isOutbound) {
         return [
           {
-            title: "37M 巴士接駁 + 港鐵東涌綫",
+            title: "37M 巴士接駁 + 港鐵東涌綫 (全日通用)",
             type: "巴士 ➔ 港鐵",
             steps: [
-              { badge: "巴士", text: "於 翔東邨/迎東邨 乘坐 城巴 37M 至 東涌站巴士總站", bus: "37M", eta: ["3 分鐘", "8 分鐘"] },
+              { badge: "巴士", text: "於 翔東邨/迎東邨 乘坐 城巴 37M 至 東涌站", bus: "37M", eta: ["3 分鐘", "8 分鐘"] },
               { badge: "港鐵", text: `東涌站 乘坐 東涌綫，於轉乘站轉乘前往 ${districtName}` }
             ]
           },
           {
-            title: "青嶼幹線轉車站 巴士轉乘",
+            title: "青嶼幹線轉車站 轉乘",
             type: "巴士轉乘",
             steps: [
-              { badge: "巴士", text: "乘坐 E32A / E21A 路線前往 青嶼幹線轉車站", bus: "E32A/E21A", eta: ["6 分鐘", "18 分鐘"] },
-              { badge: "轉乘", text: `於青嶼幹線轉車站 轉乘對應 E/A 線巴士直達 ${districtName}` }
+              { badge: "巴士", text: "乘坐 E32A / E21A 前往 青嶼幹線轉車站", bus: "E32A", eta: ["6 分鐘", "18 分鐘"] },
+              { badge: "轉乘", text: `轉乘對應 E/A 線巴士直達 ${districtName}` }
             ]
           }
         ];
@@ -346,14 +372,6 @@
               { badge: "港鐵", text: `於 ${districtName} 乘搭港鐵前往 東涌站` },
               { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["3 分鐘", "9 分鐘"] }
             ]
-          },
-          {
-            title: "青嶼幹線轉車站 轉乘回翔東邨",
-            type: "巴士轉乘",
-            steps: [
-              { badge: "巴士", text: `於 ${districtName} 乘坐往機場/東涌之 E 線巴士至 青嶼幹線轉車站` },
-              { badge: "轉乘", text: "轉乘 E32A / E21A / E11A 直達 迎東邨/翔東邨", bus: "E32A/E21A", eta: ["5 分鐘", "15 分鐘"] }
-            ]
           }
         ];
       }
@@ -365,49 +383,42 @@
     let selectedDistrictName = "";
     let selectedDirection = null;
 
-    // 初始化事件繫結
     document.addEventListener("DOMContentLoaded", () => {
-      // 1. 大區選擇
+      // 步驟 1 點擊
       document.querySelectorAll(".btn-region").forEach(btn => {
         btn.addEventListener("click", (e) => {
           document.querySelectorAll(".btn-region").forEach(b => b.classList.remove("active"));
           e.target.classList.add("active");
           selectedRegion = e.target.getAttribute("data-region");
 
-          // 渲染細分區域
           renderDistricts(selectedRegion);
           showStep(2);
         });
       });
 
-      // 2. 方向選擇
+      // 步驟 3 方向點擊
       document.querySelectorAll(".btn-dir").forEach(btn => {
         btn.addEventListener("click", (e) => {
           document.querySelectorAll(".btn-dir").forEach(b => b.classList.remove("active"));
           e.target.classList.add("active");
           selectedDirection = e.target.getAttribute("data-dir");
 
-          // 顯示結果
           renderResults();
         });
       });
 
-      // 3. 重新查詢
       document.getElementById("btnReset").addEventListener("click", resetAll);
 
-      // 加載即時交通消息
       renderNews();
       startNewsTimer();
     });
 
-    // 顯示步驟控制
     function showStep(stepNum) {
       if (stepNum >= 2) document.getElementById("step2").classList.add("active");
       if (stepNum >= 3) document.getElementById("step3").classList.add("active");
       document.getElementById("btnReset").style.display = "block";
     }
 
-    // 渲染分區按鈕
     function renderDistricts(regionKey) {
       const container = document.getElementById("districtButtons");
       container.innerHTML = "";
@@ -428,7 +439,6 @@
       });
     }
 
-    // 渲染搜尋結果
     function renderResults() {
       const container = document.getElementById("resultContainer");
       const list = document.getElementById("routeList");
@@ -439,7 +449,6 @@
       const dirText = isOutbound ? "從翔東邨出發 ➔" : "由該地區回翔東邨 ➔";
       title.textContent = `建議路線：${dirText} ${selectedDistrictName}`;
 
-      // 獲取數據
       let routeData = (routesDatabase[selectedDistrict] && routesDatabase[selectedDistrict][selectedDirection]) 
         ? routesDatabase[selectedDistrict][selectedDirection] 
         : getGenericRoutes(selectedDistrictName, isOutbound);
@@ -448,15 +457,27 @@
         const card = document.createElement("div");
         card.className = "route-card";
 
-        let stepsHTML = route.steps.map(s => `
-          <div class="segment">
-            <span class="segment-badge ${s.badge === '巴士' ? 'badge-bus' : 'badge-mtr'}">${s.badge}</span>
-            <div>
-              <div>${s.text}</div>
-              ${s.eta ? `<div class="eta-box">⏱️ 預計最快 2 班到站時間：<b>${s.eta[0]}</b> 及 <b>${s.eta[1]}</b></div>` : ''}
+        let stepsHTML = route.steps.map(s => {
+          let etaDisplay = '';
+          if (s.bus && s.eta) {
+            const check = checkRouteService(s.bus, selectedDirection);
+            if (check.inService) {
+              etaDisplay = `<div class="eta-box">⏱️ ${check.text}：<b>${s.eta[0]}</b> 及 <b>${s.eta[1]}</b></div>`;
+            } else {
+              etaDisplay = `<div class="eta-box eta-off">${check.text}</div>`;
+            }
+          }
+
+          return `
+            <div class="segment">
+              <span class="segment-badge ${s.badge === '巴士' ? 'badge-bus' : 'badge-mtr'}">${s.badge}</span>
+              <div>
+                <div>${s.text}</div>
+                ${etaDisplay}
+              </div>
             </div>
-          </div>
-        `).join("");
+          `;
+        }).join("");
 
         card.innerHTML = `
           <div class="route-header">
@@ -472,7 +493,6 @@
       container.scrollIntoView({ behavior: 'smooth' });
     }
 
-    // 重置所有選項
     function resetAll() {
       selectedRegion = null;
       selectedDistrict = null;
@@ -488,12 +508,12 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // 即時交通消息數據與邏輯
+    // 交通訊息
     const newsData = [
-      { cat: "lantau", tag: "tag-warning", tagText: "車多慢駛", title: "北大嶼山公路往機場方向", detail: "近欣澳段交通繁忙，車速較慢，請預留充足時間。", time: "5 分鐘前" },
-      { cat: "service", tag: "tag-success", tagText: "服務正常", title: "港鐵東涌綫", detail: "全綫列車服務維持正常班次 (約 4-7 分鐘一班)。", time: "10 分鐘前" },
-      { cat: "lantau", tag: "tag-danger", tagText: "交通意外", title: "屯赤隧道往屯門方向", detail: "管道內曾有輕微事故已清理，龍尾排至迎東邨附近。", time: "18 分鐘前" },
-      { cat: "service", tag: "tag-success", tagText: "服務正常", title: "城巴 / 龍運大嶼山路線", detail: "37M, E32A, E21A 及 E11A 班次維持正常運作。", time: "25 分鐘前" }
+      { cat: "lantau", tag: "tag-warning", tagText: "車多慢駛", title: "北大嶼山公路往機場方向", detail: "近欣澳段交通繁忙，車速較慢，請預留充足時間。", time: "3 分鐘前" },
+      { cat: "service", tag: "tag-success", tagText: "服務正常", title: "港鐵東涌綫", detail: "全綫列車服務維持正常班次 (約 4-7 分鐘一班)。", time: "8 分鐘前" },
+      { cat: "lantau", tag: "tag-danger", tagText: "交通意外", title: "屯赤隧道往屯門方向", detail: "管道內曾有輕微事故已清理，龍尾排至迎東邨附近。", time: "15 分鐘前" },
+      { cat: "service", tag: "tag-success", tagText: "服務正常", title: "城巴 / 龍運大嶼山路線", detail: "37M, E32A, E21A 及 E11A 班次維持正常運作。", time: "20 分鐘前" }
     ];
 
     let currentNewsFilter = 'all';
@@ -525,7 +545,6 @@
       renderNews();
     }
 
-    // 倒數計時器
     function startNewsTimer() {
       let count = 30;
       setInterval(() => {
