@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>翔東邨交通建議系統 & 即時路況Ver2</title>
+  <style>
+    :root {
+      --primary: #0066cc;
+      --primary-dark: #004c99;
+      --secondary: #28a745;
+      --warning: #ff9900;
+      --danger: #dc3545;
+      --bg: #f4f7f9;
+      --card-bg: #ffffff;
+      --text: #333333;
+      --border: #e0e6ed;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 15px; line-height: 1.5; }
+
+    .header { text-align: center; padding: 15px 0 25px 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+    .header h1 { color: var(--primary); font-size: 1.8rem; font-weight: bold; margin-bottom: 5px; }
+    .header p { color: #666; font-size: 0.95rem; }
+
+    /* 雙欄響應式佈局 */
+    .app-container { display: flex; flex-direction: column; gap: 20px; max-width: 1400px; margin: 0 auto; }
+    @media (min-width: 992px) {
+      .app-container { display: grid; grid-template-columns: 1fr 380px; gap: 25px; align-items: start; }
+    }
+
+    .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
+    .card-title { font-size: 1.15rem; font-weight: bold; color: var(--primary-dark); margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+
+    /* 按鈕樣式 */
+    .btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    .btn { padding: 10px 18px; border: 2px solid var(--primary); background: #fff; color: var(--primary); border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; flex: 1; min-width: 110px; text-align: center; }
+    .btn:hover { background: #e6f0fa; }
+    .btn.active { background: var(--primary); color: #fff; }
+    .btn-dir { border-color: var(--secondary); color: var(--secondary); }
+    .btn-dir:hover { background: #e8f5e9; }
+    .btn-dir.active { background: var(--secondary); color: #fff; }
+    .btn-reset { background: #6c757d; color: #fff; border: none; width: 100%; padding: 12px; border-radius: 8px; font-size: 1.05rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .btn-reset:hover { background: #5a6268; }
+
+    /* 步驟顯示 */
+    .step-box { display: none; margin-bottom: 20px; animation: fadeIn 0.3s ease-in-out; }
+    .step-box.active { display: block; }
+    .step-num { display: inline-block; background: var(--primary); color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 0.85rem; margin-right: 8px; }
+
+    /* 路線結果樣式 */
+    .route-card { border-left: 5px solid var(--primary); background: #fafbfc; border-radius: 8px; padding: 15px; margin-bottom: 15px; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .route-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px dashed var(--border); padding-bottom: 8px; }
+    .route-type { background: #e3f2fd; color: #0d47a1; font-size: 0.8rem; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+    .route-title { font-weight: bold; font-size: 1.1rem; color: #111; }
+    
+    .segment { display: flex; align-items: flex-start; margin: 10px 0; position: relative; }
+    .segment-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; color: #fff; min-width: 65px; text-align: center; margin-right: 12px; }
+    .badge-bus { background: #e65100; }
+    .badge-mtr { background: #d32f2f; }
+    .badge-walk { background: #757575; }
+
+    .eta-box { background: #fff3e0; border: 1px solid #ffe0b2; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; margin-top: 6px; color: #e65100; display: inline-block; font-weight: 500; }
+
+    /* 即時交通訊息 sidebar */
+    .news-tab { display: flex; gap: 5px; margin-bottom: 12px; }
+    .news-tab-btn { flex: 1; padding: 6px; font-size: 0.85rem; border: 1px solid var(--border); background: #f8f9fa; cursor: pointer; border-radius: 6px; text-align: center; }
+    .news-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: bold; }
+    .news-item { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .news-item:last-child { border-bottom: none; }
+    .news-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: #fff; margin-right: 6px; }
+    .tag-danger { background: var(--danger); }
+    .tag-warning { background: var(--warning); }
+    .tag-success { background: var(--secondary); }
+    .news-time { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>翔東邨交通建議系統Ver2</h1>
+    <p>提供翔東邨 / 迎東邨全港十八區最佳巴士及港鐵轉乘路線建議</p>
+  </div>
+
+  <div class="app-container">
+    <!-- 左側：路線搜尋主區域 -->
+    <div class="main-content">
+      
+      <div class="card">
+        <!-- 步驟 1：選擇地區大區 -->
+        <div id="step1" class="step-box active">
+          <div class="card-title"><span class="step-num">1</span>第一步：請選擇地區</div>
+          <div class="btn-group">
+            <button class="btn btn-region" data-region="HK">香港島</button>
+            <button class="btn btn-region" data-region="KLN">九龍</button>
+            <button class="btn btn-region" data-region="NT">新界</button>
+          </div>
+        </div>
+
+        <!-- 步驟 2：選擇分區 -->
+        <div id="step2" class="step-box">
+          <div class="card-title"><span class="step-num">2</span>第二步：請選擇細分區域</div>
+          <div class="btn-group" id="districtButtons"></div>
+        </div>
+
+        <!-- 步驟 3：選擇方向 -->
+        <div id="step3" class="step-box">
+          <div class="card-title"><span class="step-num">3</span>第三步：請選擇出行方向</div>
+          <div class="btn-group">
+            <button class="btn btn-dir" data-dir="outbound">《從翔東邨出發》</button>
+            <button class="btn btn-dir" data-dir="inbound">《由該地區回翔東邨》</button>
+          </div>
+        </div>
+
+        <!-- 重新查詢按鈕 -->
+        <button id="btnReset" class="btn-reset" style="display: none;">《重新查詢》清空選項</button>
+      </div>
+
+      <!-- 路線結果列表 -->
+      <div id="resultContainer" style="display: none;">
+        <div class="card-title" id="resultTitle">交通建議路線</div>
+        <div id="routeList"></div>
+      </div>
+
+    </div>
+
+    <!-- 右側：即時交通訊息側邊欄 -->
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">
+          <span>🚦 即時交通 & 路況消息</span>
+          <span style="font-size: 0.8rem; color: #666; font-weight: normal;" id="updateTimer">30s 後更新</span>
+        </div>
+        <div class="news-tab">
+          <div class="news-tab-btn active" onclick="filterNews('all')">全部</div>
+          <div class="news-tab-btn" onclick="filterNews('lantau')">大嶼山/東涌</div>
+          <div class="news-tab-btn" onclick="filterNews('service')">港鐵/巴士服務</div>
+        </div>
+        <div id="newsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 18區及詳細城鎮點數據
+    const districtsData = {
+      HK: [
+        { id: "CW", name: "中西區 (中環/金鐘/堅尼地城)" },
+        { id: "WC", name: "灣仔區 (灣仔/銅鑼灣)" },
+        { id: "E", name: "東區 (北角/太古/柴灣)" },
+        { id: "S", name: "南區 (香港仔/赤柱)" }
+      ],
+      KLN: [
+        { id: "YTM", name: "油尖旺 (旺角/尖沙咀/佐敦)" },
+        { id: "SSP", name: "深水埗區 (深水埗/長沙灣)" },
+        { id: "KCD", name: "九龍城區 (紅磡/土瓜灣/啟德)" },
+        { id: "WTS", name: "黃大仙區 (黃大仙/鑽石山)" },
+        { id: "KT", name: "觀塘區 (觀塘/九龍灣)" }
+      ],
+      NT: [
+        { id: "TW", name: "荃灣區 (荃灣市中心)" },
+        { id: "KWT", name: "葵青區 (葵芳/葵興/青衣)" },
+        { id: "TM", name: "屯門區 (屯門市中心/碼頭)" },
+        { id: "YL", name: "元朗區 (元朗/天水圍)" },
+        { id: "ST", name: "沙田區 (沙田/馬鞍山)" },
+        { id: "TP", name: "大埔區 (大埔墟/太和)" },
+        { id: "N", name: "北區 (上水/粉嶺)" },
+        { id: "SK", name: "西貢區 (將軍澳/西貢)" }
+      ]
+    };
+
+    // 交通路線數據庫 (去程與回程)
+    const routesDatabase = {
+      // 荃灣區
+      "TW": {
+        outbound: [
+          {
+            title: "直達龍運巴士 E32A (最推薦)",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 迎東邨/翔東邨 巴士站乘坐 龍運 E32A", bus: "E32A", eta: ["5 分鐘", "18 分鐘"] },
+              { badge: "到達", text: "途經 葵芳、葵興，直達 荃灣滿樂大廈 / 荃灣大窩口" }
+            ]
+          },
+          {
+            title: "37M 巴士接駁 + 港鐵東涌綫",
+            type: "巴士 ➔ 港鐵",
+            steps: [
+              { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站巴士總站", bus: "37M", eta: ["3 分鐘", "9 分鐘"] },
+              { badge: "港鐵", text: "東涌站 乘坐 東涌綫 至 荔景站，轉乘 荃灣綫 至 荃灣站" }
+            ]
+          }
+        ],
+        inbound: [
+          {
+            title: "直達龍運巴士 E32A (最方便)",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 荃灣滿樂大廈/大窩口站/葵芳 乘坐 龍運 E32A", bus: "E32A", eta: ["8 分鐘", "22 分鐘"] },
+              { badge: "到達", text: "直達 迎東邨總站 / 翔東邨落車" }
+            ]
+          },
+          {
+            title: "港鐵 ➔ 37M 巴士接駁",
+            type: "港鐵 ➔ 巴士",
+            steps: [
+              { badge: "港鐵", text: "荃灣站 乘坐 荃灣綫 至 荔景站，轉乘 東涌綫 至 東涌站" },
+              { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["4 分鐘", "10 分鐘"] }
+            ]
+          }
+        ]
+      },
+      // 深水埗區
+      "SSP": {
+        outbound: [
+          {
+            title: "直達城巴 E21A / E21B",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 迎東邨/翔東邨 巴士站乘坐 城巴 E21A 或 E21B", bus: "E21A/B", eta: ["7 分鐘", "21 分鐘"] },
+              { badge: "到達", text: "直達 深水埗欽州街、長沙灣道及美孚" }
+            ]
+          },
+          {
+            title: "37M 巴士接駁 + 港鐵東涌綫",
+            type: "巴士 ➔ 港鐵",
+            steps: [
+              { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站", bus: "37M", eta: ["3 分鐘", "8 分鐘"] },
+              { badge: "港鐵", text: "東涌站 乘坐 東涌綫 至 南昌站 (直達深水埗西) 或 荔景站轉荃灣綫" }
+            ]
+          }
+        ],
+        inbound: [
+          {
+            title: "直達城巴 E21A / E21B",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 美孚/長沙灣道/深水埗欽州街 乘坐 城巴 E21A 或 E21B", bus: "E21A/B", eta: ["10 分鐘", "25 分鐘"] },
+              { badge: "到達", text: "直達 迎東邨總站 / 翔東邨落車" }
+            ]
+          },
+          {
+            title: "港鐵 ➔ 37M 巴士接駁",
+            type: "港鐵 ➔ 巴士",
+            steps: [
+              { badge: "港鐵", text: "南昌站 乘坐 港鐵東涌綫 至 東涌站" },
+              { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["3 分鐘", "9 分鐘"] }
+            ]
+          }
+        ]
+      },
+      // 中西區
+      "CW": {
+        outbound: [
+          {
+            title: "直達城巴 E11A",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 城巴 E11A", bus: "E11A", eta: ["12 分鐘", "28 分鐘"] },
+              { badge: "到達", text: "途經 西區海底隧道，直達 上環、中環、金鐘" }
+            ]
+          },
+          {
+            title: "37M 巴士接駁 + 港鐵東涌綫 (最快)",
+            type: "巴士 ➔ 港鐵",
+            steps: [
+              { badge: "巴士", text: "乘坐 城巴 37M 至 東涌站", bus: "37M", eta: ["2 分鐘", "7 分鐘"] },
+              { badge: "港鐵", text: "東涌站 乘坐 東涌綫 直達 香港站 (可步行至中環站)" }
+            ]
+          }
+        ],
+        inbound: [
+          {
+            title: "直達城巴 E11A",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 金鐘/中環干諾道中/上環 乘坐 城巴 E11A", bus: "E11A", eta: ["15 分鐘", "30 分鐘"] },
+              { badge: "到達", text: "經西隧直達 迎東邨 / 翔東邨" }
+            ]
+          },
+          {
+            title: "港鐵東涌綫 ➔ 37M 巴士",
+            type: "港鐵 ➔ 巴士",
+            steps: [
+              { badge: "港鐵", text: "香港站 乘坐 港鐵東涌綫 直達 東涌站" },
+              { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["4 分鐘", "10 分鐘"] }
+            ]
+          }
+        ]
+      },
+      // 元朗區
+      "YL": {
+        outbound: [
+          {
+            title: "直達龍運巴士 E36A",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 迎東邨/翔東邨 乘坐 龍運 E36A", bus: "E36A", eta: ["10 分鐘", "25 分鐘"] },
+              { badge: "到達", text: "途經 屯赤隧道，直達 天水圍市中心 及 元朗形點" }
+            ]
+          }
+        ],
+        inbound: [
+          {
+            title: "直達龍運巴士 E36A",
+            type: "直達巴士",
+            steps: [
+              { badge: "巴士", text: "於 元朗形點 / 天水圍市中心 乘坐 龍運 E36A", bus: "E36A", eta: ["12 分鐘", "27 分鐘"] },
+              { badge: "到達", text: "經屯赤隧道直達 迎東邨 / 翔東邨" }
+            ]
+          }
+        ]
+      }
+    };
+
+    // 通用預設路線（當特定分區未特別寫明時調用）
+    function getGenericRoutes(districtName, isOutbound) {
+      if (isOutbound) {
+        return [
+          {
+            title: "37M 巴士接駁 + 港鐵東涌綫",
+            type: "巴士 ➔ 港鐵",
+            steps: [
+              { badge: "巴士", text: "於 翔東邨/迎東邨 乘坐 城巴 37M 至 東涌站巴士總站", bus: "37M", eta: ["3 分鐘", "8 分鐘"] },
+              { badge: "港鐵", text: `東涌站 乘坐 東涌綫，於轉乘站轉乘前往 ${districtName}` }
+            ]
+          },
+          {
+            title: "青嶼幹線轉車站 巴士轉乘",
+            type: "巴士轉乘",
+            steps: [
+              { badge: "巴士", text: "乘坐 E32A / E21A 路線前往 青嶼幹線轉車站", bus: "E32A/E21A", eta: ["6 分鐘", "18 分鐘"] },
+              { badge: "轉乘", text: `於青嶼幹線轉車站 轉乘對應 E/A 線巴士直達 ${districtName}` }
+            ]
+          }
+        ];
+      } else {
+        return [
+          {
+            title: `港鐵 ➔ 東涌站 ➔ 37M 巴士`,
+            type: "港鐵 ➔ 巴士",
+            steps: [
+              { badge: "港鐵", text: `於 ${districtName} 乘搭港鐵前往 東涌站` },
+              { badge: "巴士", text: "東涌站巴士總站 轉乘 城巴 37M 直達 迎東邨/翔東邨", bus: "37M", eta: ["3 分鐘", "9 分鐘"] }
+            ]
+          },
+          {
+            title: "青嶼幹線轉車站 轉乘回翔東邨",
+            type: "巴士轉乘",
+            steps: [
+              { badge: "巴士", text: `於 ${districtName} 乘坐往機場/東涌之 E 線巴士至 青嶼幹線轉車站` },
+              { badge: "轉乘", text: "轉乘 E32A / E21A / E11A 直達 迎東邨/翔東邨", bus: "E32A/E21A", eta: ["5 分鐘", "15 分鐘"] }
+            ]
+          }
+        ];
+      }
+    }
+
+    // 狀態管理
+    let selectedRegion = null;
+    let selectedDistrict = null;
+    let selectedDistrictName = "";
+    let selectedDirection = null;
+
+    // 初始化事件繫結
+    document.addEventListener("DOMContentLoaded", () => {
+      // 1. 大區選擇
+      document.querySelectorAll(".btn-region").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          document.querySelectorAll(".btn-region").forEach(b => b.classList.remove("active"));
+          e.target.classList.add("active");
+          selectedRegion = e.target.getAttribute("data-region");
+
+          // 渲染細分區域
+          renderDistricts(selectedRegion);
+          showStep(2);
+        });
+      });
+
+      // 2. 方向選擇
+      document.querySelectorAll(".btn-dir").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          document.querySelectorAll(".btn-dir").forEach(b => b.classList.remove("active"));
+          e.target.classList.add("active");
+          selectedDirection = e.target.getAttribute("data-dir");
+
+          // 顯示結果
+          renderResults();
+        });
+      });
+
+      // 3. 重新查詢
+      document.getElementById("btnReset").addEventListener("click", resetAll);
+
+      // 加載即時交通消息
+      renderNews();
+      startNewsTimer();
+    });
+
+    // 顯示步驟控制
+    function showStep(stepNum) {
+      if (stepNum >= 2) document.getElementById("step2").classList.add("active");
+      if (stepNum >= 3) document.getElementById("step3").classList.add("active");
+      document.getElementById("btnReset").style.display = "block";
+    }
+
+    // 渲染分區按鈕
+    function renderDistricts(regionKey) {
+      const container = document.getElementById("districtButtons");
+      container.innerHTML = "";
+      const list = districtsData[regionKey] || [];
+
+      list.forEach(item => {
+        const btn = document.createElement("button");
+        btn.className = "btn btn-district";
+        btn.textContent = item.name;
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".btn-district").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          selectedDistrict = item.id;
+          selectedDistrictName = item.name;
+          showStep(3);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    // 渲染搜尋結果
+    function renderResults() {
+      const container = document.getElementById("resultContainer");
+      const list = document.getElementById("routeList");
+      const title = document.getElementById("resultTitle");
+
+      list.innerHTML = "";
+      const isOutbound = selectedDirection === "outbound";
+      const dirText = isOutbound ? "從翔東邨出發 ➔" : "由該地區回翔東邨 ➔";
+      title.textContent = `建議路線：${dirText} ${selectedDistrictName}`;
+
+      // 獲取數據
+      let routeData = (routesDatabase[selectedDistrict] && routesDatabase[selectedDistrict][selectedDirection]) 
+        ? routesDatabase[selectedDistrict][selectedDirection] 
+        : getGenericRoutes(selectedDistrictName, isOutbound);
+
+      routeData.forEach(route => {
+        const card = document.createElement("div");
+        card.className = "route-card";
+
+        let stepsHTML = route.steps.map(s => `
+          <div class="segment">
+            <span class="segment-badge ${s.badge === '巴士' ? 'badge-bus' : 'badge-mtr'}">${s.badge}</span>
+            <div>
+              <div>${s.text}</div>
+              ${s.eta ? `<div class="eta-box">⏱️ 預計最快 2 班到站時間：<b>${s.eta[0]}</b> 及 <b>${s.eta[1]}</b></div>` : ''}
+            </div>
+          </div>
+        `).join("");
+
+        card.innerHTML = `
+          <div class="route-header">
+            <span class="route-title">${route.title}</span>
+            <span class="route-type">${route.type}</span>
+          </div>
+          ${stepsHTML}
+        `;
+        list.appendChild(card);
+      });
+
+      container.style.display = "block";
+      container.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 重置所有選項
+    function resetAll() {
+      selectedRegion = null;
+      selectedDistrict = null;
+      selectedDistrictName = "";
+      selectedDirection = null;
+
+      document.querySelectorAll(".btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("step2").classList.remove("active");
+      document.getElementById("step3").classList.remove("active");
+      document.getElementById("resultContainer").style.display = "none";
+      document.getElementById("btnReset").style.display = "none";
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 即時交通消息數據與邏輯
+    const newsData = [
+      { cat: "lantau", tag: "tag-warning", tagText: "車多慢駛", title: "北大嶼山公路往機場方向", detail: "近欣澳段交通繁忙，車速較慢，請預留充足時間。", time: "5 分鐘前" },
+      { cat: "service", tag: "tag-success", tagText: "服務正常", title: "港鐵東涌綫", detail: "全綫列車服務維持正常班次 (約 4-7 分鐘一班)。", time: "10 分鐘前" },
+      { cat: "lantau", tag: "tag-danger", tagText: "交通意外", title: "屯赤隧道往屯門方向", detail: "管道內曾有輕微事故已清理，龍尾排至迎東邨附近。", time: "18 分鐘前" },
+      { cat: "service", tag: "tag-success", tagText: "服務正常", title: "城巴 / 龍運大嶼山路線", detail: "37M, E32A, E21A 及 E11A 班次維持正常運作。", time: "25 分鐘前" }
+    ];
+
+    let currentNewsFilter = 'all';
+
+    function renderNews() {
+      const container = document.getElementById("newsList");
+      container.innerHTML = "";
+
+      const filtered = currentNewsFilter === 'all' 
+        ? newsData 
+        : newsData.filter(n => n.cat === currentNewsFilter);
+
+      filtered.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "news-item";
+        div.innerHTML = `
+          <div><span class="news-tag ${item.tag}">${item.tagText}</span><b>${item.title}</b></div>
+          <div style="margin-top: 4px; color: #555;">${item.detail}</div>
+          <div class="news-time">更新於：${item.time}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function filterNews(category) {
+      currentNewsFilter = category;
+      document.querySelectorAll(".news-tab-btn").forEach(btn => btn.classList.remove("active"));
+      event.target.classList.add("active");
+      renderNews();
+    }
+
+    // 倒數計時器
+    function startNewsTimer() {
+      let count = 30;
+      setInterval(() => {
+        count--;
+        if (count <= 0) {
+          count = 30;
+          renderNews();
+        }
+        document.getElementById("updateTimer").textContent = `${count}s 後更新`;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
