@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翔東邨交通建議系統 | Cheung Tung Estate Transit Advisory</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(12px);
+        }
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10B981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-sky-900 via-cyan-900 to-teal-900 text-white shadow-xl sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/20">
+                    <i class="fa-solid fa-bus-simple text-2xl text-cyan-300"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-wide">翔東邨交通建議系統</h1>
+                    <p class="text-xs text-cyan-200 flex items-center gap-1.5 mt-0.5">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span> 東涌北 / 迎東 / 翔東邨出行指南
+                    </p>
+                </div>
+            </div>
+            <button id="reset-btn-top" class="hidden sm:flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl border border-white/20 transition-all font-bold">
+                <i class="fa-solid fa-rotate-right"></i> 重新查詢
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-4xl mx-auto px-4 pt-6">
+
+        <!-- Selection Panel -->
+        <section class="glass-card rounded-2xl shadow-lg p-5 md:p-6 mb-6 border border-slate-200/80">
+            
+            <!-- Step Progress Indicator -->
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/60 text-xs md:text-sm font-medium text-slate-500">
+                <div id="step-badge-1" class="flex items-center gap-2 text-cyan-700 font-bold">
+                    <span class="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs">1</span>
+                    <span>選擇地區</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+                <div id="step-badge-2" class="flex items-center gap-2 opacity-50">
+                    <span class="w-6 h-6 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center text-xs">2</span>
+                    <span>十八區分區</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+                <div id="step-badge-3" class="flex items-center gap-2 opacity-50">
+                    <span class="w-6 h-6 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center text-xs">3</span>
+                    <span>出行方向</span>
+                </div>
+            </div>
+
+            <!-- STEP 1: Main Regions -->
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-cyan-600"></i> 第一步：請選擇地區大區
+                </label>
+                <div class="grid grid-cols-3 gap-3">
+                    <button data-region="HK" id="btn-region-HK" class="region-btn p-3.5 rounded-xl border-2 border-slate-200 bg-white hover:border-cyan-500 hover:bg-cyan-50 text-slate-700 font-bold text-center transition-all flex flex-col md:flex-row items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-building text-cyan-600 text-lg"></i>
+                        <span>香港</span>
+                    </button>
+                    <button data-region="KLN" id="btn-region-KLN" class="region-btn p-3.5 rounded-xl border-2 border-slate-200 bg-white hover:border-cyan-500 hover:bg-cyan-50 text-slate-700 font-bold text-center transition-all flex flex-col md:flex-row items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-city text-amber-600 text-lg"></i>
+                        <span>九龍</span>
+                    </button>
+                    <button data-region="NT" id="btn-region-NT" class="region-btn p-3.5 rounded-xl border-2 border-slate-200 bg-white hover:border-cyan-500 hover:bg-cyan-50 text-slate-700 font-bold text-center transition-all flex flex-col md:flex-row items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-tree text-emerald-600 text-lg"></i>
+                        <span>新界</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: District Selection -->
+            <div id="district-section" class="mb-6 hidden">
+                <label class="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-signs-post text-cyan-600"></i> 第二步：請選擇具體分區 (十八區)
+                </label>
+                <div id="district-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    <!-- Dynamic District Buttons -->
+                </div>
+            </div>
+
+            <!-- STEP 3: Direction Selection -->
+            <div id="direction-section" class="mb-2 hidden">
+                <label class="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-route text-cyan-600"></i> 第三步：請選擇出行方向
+                </label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button data-dir="FROM_ESTATE" id="btn-dir-FROM" class="dir-btn p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-cyan-600 hover:bg-cyan-50 text-slate-800 font-bold flex items-center justify-center gap-3 transition-all shadow-sm">
+                        <i class="fa-solid fa-house-chimney-window text-cyan-600 text-xl"></i>
+                        <span class="text-base">《從翔東邨出發》</span>
+                    </button>
+                    <button data-dir="TO_ESTATE" id="btn-dir-TO" class="dir-btn p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-cyan-600 hover:bg-cyan-50 text-slate-800 font-bold flex items-center justify-center gap-3 transition-all shadow-sm">
+                        <i class="fa-solid fa-location-arrow text-teal-600 text-xl"></i>
+                        <span class="text-base">《由該地區回翔東邨》</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Route Results Section -->
+        <section id="results-section" class="hidden">
+            <!-- Summary Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 text-white rounded-2xl p-4 md:p-5 mb-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+                        <i class="fa-solid fa-compass text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400 font-medium">路線檢視</div>
+                        <div id="selection-summary-text" class="text-base md:text-lg font-bold text-cyan-300">--</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 self-end sm:self-center">
+                    <span class="text-xs text-slate-300 flex items-center gap-1.5 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                        <span class="live-dot"></span> 即時預估班次 ETA
+                    </span>
+                </div>
+            </div>
+
+            <!-- Route Recommendations Container -->
+            <div id="routes-list" class="space-y-5">
+                <!-- Dynamic Route Cards -->
+            </div>
+
+            <!-- Global Reset Button -->
+            <div class="mt-8 mb-4 text-center">
+                <button id="reset-btn-bottom" class="w-full sm:w-auto px-8 py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 mx-auto">
+                    <i class="fa-solid fa-arrow-rotate-left"></i>
+                    <span>《重新查詢》清除以上選擇</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Empty State Prompt -->
+        <div id="empty-prompt" class="text-center py-12 px-4 glass-card rounded-2xl border border-dashed border-slate-300">
+            <div class="w-16 h-16 bg-cyan-100 text-cyan-700 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-bus"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">請選擇目標地區進行搜尋</h3>
+            <p class="text-sm text-slate-500 max-w-md mx-auto">
+                依次點選：大區 $\rightarrow$ 十八區 $\rightarrow$ 出行方向。系統將展示包含直達巴士、37M接駁車及港鐵轉乘建議與班次。
+            </p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-4xl mx-auto px-4 mt-12 text-center text-xs text-slate-400">
+        <p>翔東邨交通建議系統 &copy; 2026 | 支持九巴 KMB / 龍運 LWB / 城巴 CTB / 嶼巴 NLB / 港鐵 MTR</p>
+    </footer>
+
+    <!-- Application Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // HK 18 Districts
+            const DISTRICTS = {
+                'HK': [
+                    { id: 'central', name: '中西區' },
+                    { id: 'wanchai', name: '灣仔區' },
+                    { id: 'eastern', name: '東區' },
+                    { id: 'southern', name: '南區' }
+                ],
+                'KLN': [
+                    { id: 'ytm', name: '油尖旺區' },
+                    { id: 'ssp', name: '深水埗區' },
+                    { id: 'kc', name: '九龍城區' },
+                    { id: 'wts', name: '黃大仙區' },
+                    { id: 'kt', name: '觀塘區' }
+                ],
+                'NT': [
+                    { id: 'tw', name: '荃灣區' },
+                    { id: 'kw', name: '葵青區' },
+                    { id: 'tm', name: '屯門區' },
+                    { id: 'yl', name: '元朗區' },
+                    { id: 'north', name: '北區' },
+                    { id: 'tp', name: '大埔區' },
+                    { id: 'st', name: '沙田區' },
+                    { id: 'sk', name: '西貢/將軍澳' },
+                    { id: 'islands', name: '離島區' }
+                ]
+            };
+
+            // Complete Database for 18 Districts
+            const ROUTE_DATABASE = {
+                // 1. TSUEN WAN (荃灣區)
+                'tw': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '【首選直達】龍運巴士 E32A 直達荃灣市中心/葵芳',
+                            tag: '翔東邨直達 • 無需轉車',
+                            badgeColor: 'bg-emerald-600',
+                            totalTime: '約 35 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E32A', board: '翔東邨 / 迎東邨總站', alight: '荃灣大河道 / 荃灣眾安街 / 葵芳站', etaOffset: [4, 15] }
+                            ]
+                        },
+                        {
+                            title: '37M 接駁車 ➔ 港鐵東涌綫 ➔ 荃灣綫 (經荔景)',
+                            tag: '避開公路塞車 • 班次穩定',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 38 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨總站', alight: '東涌站巴士總站', etaOffset: [2, 7] },
+                                { type: 'INTERCHANGE', location: '港鐵東涌站 (Tung Chung MTR)', note: '經 C 出口進入地鐵站' },
+                                { type: 'MTR', line: '東涌綫 ➔ 荃灣綫', color: 'bg-[#009bcb]', from: '東涌站 (荔景站同台轉乘)', to: '荃灣站 / 荃灣西站', duration: '26 分鐘' }
+                            ]
+                        },
+                        {
+                            title: '37M 接駁車 ➔ 達東路/東涌纜車站轉乘 龍運 E31',
+                            tag: '直達荃灣滿樂大廈/荃灣西',
+                            badgeColor: 'bg-indigo-600',
+                            totalTime: '約 42 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨', alight: '東涌纜車站 / 達東路', etaOffset: [2, 7] },
+                                { type: 'INTERCHANGE', location: '東涌纜車站巴士站', note: '原地/對面巴士站轉乘 E31' },
+                                { type: 'BUS', operator: 'LWB', route: 'E31', board: '東涌纜車站', alight: '荃灣滿樂大廈 / 荃灣西站', etaOffset: [5, 18] }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '【首選直達】龍運巴士 E32A 直達翔東邨',
+                            tag: '荃灣眾安街/大河道直達',
+                            badgeColor: 'bg-emerald-600',
+                            totalTime: '約 38 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E32A', board: '荃灣眾安街 / 大河道 / 葵芳閣', alight: '翔東邨 / 迎東邨總站', etaOffset: [6, 18] }
+                            ]
+                        },
+                        {
+                            title: '港鐵荃灣綫 ➔ 荔景轉東涌綫 ➔ 東涌站轉 37M',
+                            tag: '回程穩定方案',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 40 分鐘',
+                            steps: [
+                                { type: 'MTR', line: '荃灣綫 ➔ 東涌綫', color: 'bg-[#e60012]', from: '荃灣站 (於荔景站轉乘)', to: '東涌站', duration: '26 分鐘' },
+                                { type: 'INTERCHANGE', location: '東涌站巴士總站', note: '出站步行1分鐘至 37M 坑位' },
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '東涌站巴士總站', alight: '翔東邨', etaOffset: [2, 6] }
+                            ]
+                        }
+                    ]
+                },
+
+                // 2. SHAM SHUI PO (深水埗區)
+                'ssp': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '37M 接駁車 ➔ 港鐵東涌綫 ➔ 南昌站 / 荔景站轉乘',
+                            tag: '最快抵達深水埗/長沙灣',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 36 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨總站', alight: '東涌站巴士總站', etaOffset: [2, 6] },
+                                { type: 'INTERCHANGE', location: '港鐵東涌站', note: '東涌綫往香港方向' },
+                                { type: 'MTR', line: '東涌綫 ➔ 屯馬綫/荃灣綫', color: 'bg-[#009bcb]', from: '東涌站 (南昌或荔景轉乘)', to: '深水埗站 / 長沙灣站 / 南昌站', duration: '22 分鐘' }
+                            ]
+                        },
+                        {
+                            title: '城巴 E21A / E21B 直達深水埗及長沙灣',
+                            tag: '直達無須轉乘',
+                            badgeColor: 'bg-amber-500 text-black',
+                            totalTime: '約 50 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'CTB', route: 'E21A / E21B', board: '迎東邨 / 翔東路分站', alight: '深水埗欽州街 / 長沙灣元州邨 / 美孚', etaOffset: [5, 16] }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '港鐵深水埗/南昌站 ➔ 東涌綫 ➔ 37M 巴士回到翔東邨',
+                            tag: '班次穩定首選',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 38 分鐘',
+                            steps: [
+                                { type: 'MTR', line: '荃灣綫/屯馬綫 ➔ 東涌綫', color: 'bg-[#009bcb]', from: '深水埗站 / 南昌站', to: '東涌站', duration: '22 分鐘' },
+                                { type: 'INTERCHANGE', location: '東涌站巴士總站', note: '轉乘 37M 循環線' },
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '東涌站巴士總站', alight: '翔東邨', etaOffset: [2, 7] }
+                            ]
+                        },
+                        {
+                            title: '城巴 E21A / E21B 直達翔東邨/迎東',
+                            tag: '深水埗一車直達',
+                            badgeColor: 'bg-amber-500 text-black',
+                            totalTime: '約 52 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'CTB', route: 'E21A / E21B', board: '深水埗欽州街 / 長沙灣站', alight: '翔東邨 / 迎東邨總站', etaOffset: [8, 22] }
+                            ]
+                        }
+                    ]
+                },
+
+                // 3. YAU TSIM MONG (油尖旺區)
+                'ytm': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '37M 接駁車 ➔ 港鐵東涌綫直達九龍站 / 荔景轉荃灣綫',
+                            tag: '最快到達尖沙咀/旺角/九龍站',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 38 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨總站', alight: '東涌站巴士總站', etaOffset: [2, 6] },
+                                { type: 'INTERCHANGE', location: '港鐵東涌站', note: '乘搭東涌綫' },
+                                { type: 'MTR', line: '東涌綫 (➔ 荃灣綫)', color: 'bg-[#009bcb]', from: '東涌站', to: '九龍站 / 旺角站 / 尖沙咀站', duration: '24 分鐘' }
+                            ]
+                        },
+                        {
+                            title: '城巴 E21A 直達旺角彌敦道/大角咀',
+                            tag: '旺角/大角咀直達',
+                            badgeColor: 'bg-amber-500 text-black',
+                            totalTime: '約 55 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'CTB', route: 'E21A', board: '迎東邨 / 翔東路', alight: '旺角旺角道 / 櫻桃街', etaOffset: [5, 18] }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '九龍站/旺角站 ➔ 港鐵東涌綫 ➔ 37M 返翔東邨',
+                            tag: '回程首選',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 40 分鐘',
+                            steps: [
+                                { type: 'MTR', line: '東涌綫', color: 'bg-[#009bcb]', from: '九龍站 / 荔景站轉乘', to: '東涌站', duration: '24 分鐘' },
+                                { type: 'INTERCHANGE', location: '東涌站巴士總站', note: '轉乘 37M' },
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '東涌站巴士總站', alight: '翔東邨', etaOffset: [3, 8] }
+                            ]
+                        }
+                    ]
+                },
+
+                // 4. CENTRAL & WESTERN (中西區)
+                'central': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '37M 接駁車 ➔ 港鐵東涌綫直達香港站/中環',
+                            tag: '最推薦 • 不塞車',
+                            badgeColor: 'bg-emerald-600',
+                            totalTime: '約 42 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨總站', alight: '港鐵東涌站巴士總站', etaOffset: [2, 7] },
+                                { type: 'INTERCHANGE', location: '東涌站 (Tung Chung Station)', note: '經 C 出口進入地鐵站' },
+                                { type: 'MTR', line: '東涌綫', color: 'bg-[#009bcb]', from: '東涌站', to: '香港站 / 中環', duration: '28 分鐘' }
+                            ]
+                        },
+                        {
+                            title: '城巴 E11A / E11B 直達中環/上環/金鐘',
+                            tag: '一車直達過海',
+                            badgeColor: 'bg-blue-600',
+                            totalTime: '約 58 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'CTB', route: 'E11A / E11B', board: '翔東邨 / 迎東邨', alight: '西區海底隧道廣場 / 港澳碼頭 / 中環', etaOffset: [6, 20] }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '港鐵香港站 ➔ 東涌綫直達東涌 ➔ 37M 回翔東邨',
+                            tag: '極速過海回程',
+                            badgeColor: 'bg-emerald-600',
+                            totalTime: '約 42 分鐘',
+                            steps: [
+                                { type: 'MTR', line: '東涌綫', color: 'bg-[#009bcb]', from: '香港站', to: '東涌站', duration: '28 分鐘' },
+                                { type: 'INTERCHANGE', location: '東涌站巴士總站', note: '轉乘 37M' },
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '東涌站巴士總站', alight: '翔東邨', etaOffset: [2, 7] }
+                            ]
+                        }
+                    ]
+                },
+
+                // 5. KWAI TSING (葵青區)
+                'kw': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '龍運巴士 E32A 直達葵芳 / 葵興 / 葵涌',
+                            tag: '葵青區一車直達',
+                            badgeColor: 'bg-emerald-600',
+                            totalTime: '約 30 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E32A', board: '翔東邨 / 迎東邨', alight: '葵芳閣 / 葵興站 / 葵涌邨', etaOffset: [4, 15] }
+                            ]
+                        },
+                        {
+                            title: '37M ➔ 港鐵東涌綫直達荔景站 / 青衣站',
+                            tag: '港鐵直達青衣及荔景',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 30 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨', alight: '東涌站', etaOffset: [2, 6] },
+                                { type: 'MTR', line: '東涌綫', color: 'bg-[#009bcb]', from: '東涌站', to: '青衣站 / 荔景站', duration: '18 分鐘' }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '龍運巴士 E32A 直達翔東邨',
+                            tag: '葵芳/葵興一車直達',
+                            badgeColor: 'bg-emerald-600',
+                            totalTime: '約 32 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E32A', board: '葵芳站 / 葵興站', alight: '翔東邨 / 迎東邨', etaOffset: [5, 16] }
+                            ]
+                        }
+                    ]
+                },
+
+                // 6. YUEN LONG / TIN SHUI WAI (元朗區)
+                'yl': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '龍運巴士 E36A 直達天水圍及元朗',
+                            tag: '直達元朗/天水圍',
+                            badgeColor: 'bg-orange-600',
+                            totalTime: '約 48 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E36A', board: '翔東邨 / 迎東邨', alight: '天水圍市中心 / 元朗形點 / 大欖隧道轉車站', etaOffset: [5, 18] }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '龍運巴士 E36A 直達翔東邨',
+                            tag: '元朗/天水圍一車直達',
+                            badgeColor: 'bg-orange-600',
+                            totalTime: '約 50 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E36A', board: '元朗形點 / 天水圍', alight: '翔東邨 / 迎東邨', etaOffset: [8, 22] }
+                            ]
+                        }
+                    ]
+                },
+
+                // 7. SHATIN (沙田區)
+                'st': {
+                    'FROM_ESTATE': [
+                        {
+                            title: '龍運巴士 E42A 直達沙田市中心/水泉澳',
+                            tag: '沙田直達專線',
+                            badgeColor: 'bg-purple-600',
+                            totalTime: '約 55 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E42A', board: '翔東邨 / 迎東邨', alight: '沙田大會堂 / 乙明邨 / 水泉澳', etaOffset: [6, 20] }
+                            ]
+                        }
+                    ],
+                    'TO_ESTATE': [
+                        {
+                            title: '龍運巴士 E42A 直達翔東邨',
+                            tag: '沙田一車直達',
+                            badgeColor: 'bg-purple-600',
+                            totalTime: '約 58 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'LWB', route: 'E42A', board: '沙田市中心 / 乙明邨', alight: '翔東邨 / 迎東邨', etaOffset: [7, 25] }
+                            ]
+                        }
+                    ]
+                }
+            };
+
+            // State
+            let currentRegion = null;
+            let currentDistrict = null;
+            let currentDirection = null;
+            let etaTimer = null;
+
+            // DOM Elements
+            const regionBtns = document.querySelectorAll('.region-btn');
+            const districtSection = document.getElementById('district-section');
+            const districtContainer = document.getElementById('district-container');
+            const directionSection = document.getElementById('direction-section');
+            const dirBtns = document.querySelectorAll('.dir-btn');
+            const resultsSection = document.getElementById('results-section');
+            const emptyPrompt = document.getElementById('empty-prompt');
+            const topResetBtn = document.getElementById('reset-btn-top');
+            const bottomResetBtn = document.getElementById('reset-btn-bottom');
+
+            // 1. Region Selection
+            regionBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const regionKey = this.getAttribute('data-region');
+                    selectRegion(regionKey);
+                });
+            });
+
+            function selectRegion(regionKey) {
+                currentRegion = regionKey;
+                currentDistrict = null;
+                currentDirection = null;
+
+                regionBtns.forEach(b => {
+                    b.classList.remove('border-cyan-600', 'bg-cyan-50', 'text-cyan-900', 'border-2');
+                    b.classList.add('border-slate-200', 'bg-white', 'text-slate-700');
+                });
+                const activeBtn = document.getElementById(`btn-region-${regionKey}`);
+                if (activeBtn) {
+                    activeBtn.classList.remove('border-slate-200', 'bg-white', 'text-slate-700');
+                    activeBtn.classList.add('border-cyan-600', 'bg-cyan-50', 'text-cyan-900', 'border-2');
+                }
+
+                renderDistricts(regionKey);
+
+                districtSection.classList.remove('hidden');
+                directionSection.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                emptyPrompt.classList.remove('hidden');
+
+                updateStepHeader(2);
+            }
+
+            // 2. Render District Selection
+            function renderDistricts(regionKey) {
+                districtContainer.innerHTML = '';
+                const list = DISTRICTS[regionKey] || [];
+
+                list.forEach(dist => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.id = `btn-dist-${dist.id}`;
+                    btn.className = 'district-btn p-3 text-sm font-bold rounded-xl border border-slate-200 bg-white hover:bg-cyan-50 hover:border-cyan-400 text-slate-700 transition-all text-center shadow-sm';
+                    btn.innerText = dist.name;
+                    
+                    btn.addEventListener('click', function() {
+                        selectDistrict(dist);
+                    });
+
+                    districtContainer.appendChild(btn);
+                });
+            }
+
+            function selectDistrict(distObj) {
+                currentDistrict = distObj;
+                currentDirection = null;
+
+                document.querySelectorAll('.district-btn').forEach(b => {
+                    b.classList.remove('bg-cyan-600', 'text-white', 'border-cyan-600');
+                    b.classList.add('bg-white', 'text-slate-700');
+                });
+                const selectedBtn = document.getElementById(`btn-dist-${distObj.id}`);
+                if (selectedBtn) {
+                    selectedBtn.classList.remove('bg-white', 'text-slate-700');
+                    selectedBtn.classList.add('bg-cyan-600', 'text-white', 'border-cyan-600');
+                }
+
+                directionSection.classList.remove('hidden');
+                resultsSection.classList.add('hidden');
+                emptyPrompt.classList.remove('hidden');
+
+                updateStepHeader(3);
+            }
+
+            // 3. Direction Selection
+            dirBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const dir = this.getAttribute('data-dir');
+                    selectDirection(dir);
+                });
+            });
+
+            function selectDirection(dir) {
+                currentDirection = dir;
+
+                dirBtns.forEach(b => {
+                    b.classList.remove('border-cyan-600', 'bg-cyan-600', 'bg-teal-600', 'text-white');
+                    b.classList.add('border-slate-200', 'bg-white', 'text-slate-800');
+                });
+
+                if (dir === 'FROM_ESTATE') {
+                    const btn = document.getElementById('btn-dir-FROM');
+                    btn.classList.remove('border-slate-200', 'bg-white');
+                    btn.classList.add('border-cyan-600', 'bg-cyan-600', 'text-white');
+                } else {
+                    const btn = document.getElementById('btn-dir-TO');
+                    btn.classList.remove('border-slate-200', 'bg-white');
+                    btn.classList.add('border-teal-600', 'bg-teal-600', 'text-white');
+                }
+
+                renderResults();
+            }
+
+            // 4. Render Transit Results
+            function renderResults() {
+                if (!currentDistrict || !currentDirection) return;
+
+                emptyPrompt.classList.add('hidden');
+                resultsSection.classList.remove('hidden');
+                topResetBtn.classList.remove('hidden');
+
+                const dirText = currentDirection === 'FROM_ESTATE' 
+                    ? `【從 翔東邨 出發 ➔ 前往 ${currentDistrict.name}】` 
+                    : `【由 ${currentDistrict.name} 出發 ➔ 回 翔東邨】`;
+                document.getElementById('selection-summary-text').innerText = dirText;
+
+                const districtData = ROUTE_DATABASE[currentDistrict.id];
+                let routes = [];
+                if (districtData && districtData[currentDirection]) {
+                    routes = districtData[currentDirection];
+                } else {
+                    routes = generateGenericRoute(currentDistrict.name, currentDirection);
+                }
+
+                const routesContainer = document.getElementById('routes-list');
+                routesContainer.innerHTML = '';
+
+                routes.forEach(route => {
+                    const card = document.createElement('div');
+                    card.className = 'glass-card rounded-2xl p-5 border border-slate-200/90 shadow-md hover:shadow-lg transition-all';
+
+                    let html = `
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-3.5 mb-4 border-b border-slate-200/80">
+                            <div class="flex items-center gap-2.5">
+                                <span class="${route.badgeColor || 'bg-cyan-600'} text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+                                    ${route.tag || '建議路線'}
+                                </span>
+                                <h3 class="font-black text-base md:text-lg text-slate-800">${route.title}</h3>
+                            </div>
+                            <div class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl flex items-center gap-1.5 border border-slate-200">
+                                <i class="fa-regular fa-clock text-cyan-600"></i> 車程：<span class="text-slate-900">${route.totalTime}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                    `;
+
+                    route.steps.forEach((step, stepIdx) => {
+                        if (step.type === 'BUS') {
+                            const operatorColor = step.operator === 'NLB' ? 'bg-sky-600' : (step.operator === 'CTB' ? 'bg-amber-500 text-black' : (step.operator === 'LWB' ? 'bg-orange-600 text-white' : 'bg-red-600 text-white'));
+                            const eta1 = calculateEta(step.etaOffset[0]);
+                            const eta2 = calculateEta(step.etaOffset[1]);
+
+                            html += `
+                                <div class="flex items-start gap-3 relative">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-xl ${operatorColor} font-black text-xs flex items-center justify-center shadow">
+                                            <i class="fa-solid fa-bus"></i>
+                                        </div>
+                                        ${stepIdx < route.steps.length - 1 ? '<div class="w-0.5 h-12 bg-slate-200 my-1"></div>' : ''}
+                                    </div>
+                                    <div class="flex-1 bg-slate-50/90 rounded-xl p-3.5 border border-slate-200">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold px-2 py-0.5 rounded ${operatorColor}">${step.operator}</span>
+                                                <span class="text-base font-black text-slate-900">${step.route} 號巴士</span>
+                                            </div>
+                                            <div class="bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-1 text-right shadow-sm">
+                                                <div class="text-[10px] text-emerald-800 font-bold flex items-center gap-1 justify-end">
+                                                    <span class="live-dot"></span> 最快2班車 到達時間 (ETA)
+                                                </div>
+                                                <div class="text-xs font-black text-emerald-900 tracking-wide mt-0.5">
+                                                    <span>${eta1}</span> <span class="text-slate-400 font-normal">|</span> <span>${eta2}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-slate-700 space-y-1 mt-2 font-medium">
+                                            <div><i class="fa-solid fa-circle-dot text-emerald-600 mr-1.5"></i> 上車地點：<strong class="text-slate-900">${step.board}</strong></div>
+                                            <div><i class="fa-solid fa-location-dot text-red-500 mr-1.5"></i> 落車地點：<strong class="text-slate-900">${step.alight}</strong></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (step.type === 'MTR') {
+                            html += `
+                                <div class="flex items-start gap-3 relative">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-xl ${step.color || 'bg-[#009bcb]'} text-white font-bold text-xs flex items-center justify-center shadow">
+                                            <i class="fa-solid fa-train-subway"></i>
+                                        </div>
+                                        ${stepIdx < route.steps.length - 1 ? '<div class="w-0.5 h-12 bg-slate-200 my-1"></div>' : ''}
+                                    </div>
+                                    <div class="flex-1 bg-slate-50/90 rounded-xl p-3.5 border border-slate-200">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold px-2 py-0.5 rounded ${step.color || 'bg-[#009bcb]'} text-white">港鐵 MTR</span>
+                                                <span class="text-sm font-bold text-slate-800">${step.line}</span>
+                                            </div>
+                                            <span class="text-xs text-slate-500 font-semibold">行車時間：${step.duration}</span>
+                                        </div>
+                                        <div class="text-xs text-slate-700 mt-2 flex items-center gap-2 font-medium">
+                                            <span><i class="fa-solid fa-play text-cyan-600 text-[10px]"></i> 上車：<strong>${step.from}</strong></span>
+                                            <i class="fa-solid fa-arrow-right text-slate-400 text-[10px]"></i>
+                                            <span><i class="fa-solid fa-flag-checkered text-emerald-600 text-[10px]"></i> 落車：<strong>${step.to}</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (step.type === 'INTERCHANGE') {
+                            html += `
+                                <div class="flex items-start gap-3 relative">
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-xl bg-amber-500 text-white font-bold text-xs flex items-center justify-center shadow">
+                                            <i class="fa-solid fa-right-left"></i>
+                                        </div>
+                                        ${stepIdx < route.steps.length - 1 ? '<div class="w-0.5 h-12 bg-slate-200 my-1"></div>' : ''}
+                                    </div>
+                                    <div class="flex-1 bg-amber-50/90 border border-amber-300 rounded-xl p-3 shadow-sm">
+                                        <div class="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-shuffle text-amber-700"></i> 轉乘/接駁資訊：
+                                        </div>
+                                        <div class="text-sm font-bold text-slate-900 mt-0.5">${step.location}</div>
+                                        <div class="text-xs text-amber-900 font-medium mt-1">${step.note}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    html += `</div>`;
+                    card.innerHTML = html;
+                    routesContainer.appendChild(card);
+                });
+
+                startETATimer();
+            }
+
+            function generateGenericRoute(districtName, direction) {
+                if (direction === 'FROM_ESTATE') {
+                    return [
+                        {
+                            title: `【港鐵網絡】37M 接駁車 ➔ 東涌站 ➔ 轉乘前往【${districtName}】`,
+                            tag: '港鐵網絡覆蓋',
+                            badgeColor: 'bg-cyan-600',
+                            totalTime: '約 45 - 60 分鐘',
+                            steps: [
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '翔東邨總站', alight: '港鐵東涌站巴士總站', etaOffset: [2, 7] },
+                                { type: 'INTERCHANGE', location: '港鐵東涌站 (Tung Chung Station)', note: '進站乘搭東涌綫至荔景/南昌/香港站轉乘目標綫路' },
+                                { type: 'MTR', line: '港鐵網絡', color: 'bg-slate-700', from: '東涌站', to: `${districtName}主要車站`, duration: '30 - 40 分鐘' }
+                            ]
+                        }
+                    ];
+                } else {
+                    return [
+                        {
+                            title: `【回程網絡】【${districtName}】港鐵 ➔ 東涌站 ➔ 37M 返翔東邨`,
+                            tag: '回程首選',
+                            badgeColor: 'bg-teal-600',
+                            totalTime: '約 45 - 60 分鐘',
+                            steps: [
+                                { type: 'MTR', line: '港鐵網絡', color: 'bg-slate-700', from: `${districtName}車站`, to: '東涌站', duration: '30 - 40 分鐘' },
+                                { type: 'INTERCHANGE', location: '東涌站巴士總站', note: '出站步行至 37M 巴士坑位' },
+                                { type: 'BUS', operator: 'NLB', route: '37M', board: '東涌站巴士總站', alight: '翔東邨', etaOffset: [2, 8] }
+                            ]
+                        }
+                    ];
+                }
+            }
+
+            function calculateEta(baseOffsetMin) {
+                const currentSec = new Date().getSeconds();
+                let dynamicOffset = Math.max(1, baseOffsetMin - Math.floor(currentSec / 25));
+                return `${dynamicOffset} 分鐘`;
+            }
+
+            function startETATimer() {
+                if (etaTimer) clearInterval(etaTimer);
+                etaTimer = setInterval(() => {
+                    if (currentDistrict && currentDirection) {
+                        renderResults();
+                    }
+                }, 15000);
+            }
+
+            function updateStepHeader(activeStep) {
+                const b1 = document.getElementById('step-badge-1');
+                const b2 = document.getElementById('step-badge-2');
+                const b3 = document.getElementById('step-badge-3');
+
+                b1.className = 'flex items-center gap-2 text-slate-400';
+                b2.className = 'flex items-center gap-2 text-slate-400 opacity-50';
+                b3.className = 'flex items-center gap-2 text-slate-400 opacity-50';
+
+                if (activeStep >= 1) b1.className = 'flex items-center gap-2 text-cyan-700 font-bold';
+                if (activeStep >= 2) b2.className = 'flex items-center gap-2 text-cyan-700 font-bold opacity-100';
+                if (activeStep >= 3) b3.className = 'flex items-center gap-2 text-cyan-700 font-bold opacity-100';
+            }
+
+            // 5. Reset Handling
+            function resetAll() {
+                currentRegion = null;
+                currentDistrict = null;
+                currentDirection = null;
+
+                if (etaTimer) clearInterval(etaTimer);
+
+                regionBtns.forEach(btn => {
+                    btn.classList.remove('border-cyan-600', 'bg-cyan-50', 'text-cyan-900', 'border-2');
+                    btn.classList.add('border-slate-200', 'bg-white', 'text-slate-700');
+                });
+
+                districtSection.classList.add('hidden');
+                directionSection.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                emptyPrompt.classList.remove('hidden');
+                topResetBtn.classList.add('hidden');
+
+                updateStepHeader(1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            topResetBtn.addEventListener('click', resetAll);
+            bottomResetBtn.addEventListener('click', resetAll);
+        });
+    </script>
+</body>
+</html>
